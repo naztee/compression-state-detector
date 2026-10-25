@@ -1,7 +1,25 @@
 import json
 import sqlite3
 from pathlib import Path
+import os
+import hashlib
+import tempfile
 import pandas as pd
+def runtime_db_path(source='data/scanner.sqlite', cloud=None):
+    """Keep cloud writes away from the Git-tracked daily snapshot."""
+    if os.getenv('DB_PATH'): return os.environ['DB_PATH']
+    if cloud is None: cloud='/mount/src/' in str(Path(__file__).resolve())
+    if not cloud: return source
+    src=Path(source); raw=src.read_bytes() if src.exists() else b''
+    digest=hashlib.sha256(raw).hexdigest()
+    folder=Path(tempfile.gettempdir())/'compression-observatory-runtime'; folder.mkdir(exist_ok=True)
+    target=folder/(digest+'.sqlite')
+    if raw and not target.exists():
+        with tempfile.NamedTemporaryFile(dir=folder,delete=False) as temp:
+            temp.write(raw); name=temp.name
+        os.replace(name,target)
+    return str(target)
+
 class Store:
     def __init__(self,path='data/scanner.sqlite'):
         Path(path).parent.mkdir(parents=True,exist_ok=True)

@@ -6,7 +6,7 @@ import plotly.express as px
 import streamlit as st
 from data import search, history, DataError
 from engine import analyze, outcomes, baseline_report, STATES, VERSION
-from store import Store
+from store import Store, runtime_db_path
 st.set_page_config(page_title='Compression Observatory',page_icon='◈',layout='wide')
 st.markdown('''<style>.block-container{padding-top:2rem;max-width:1450px}div[data-testid="stMetric"]{background:#152033;padding:16px;border-radius:12px}h1{letter-spacing:-.04em}</style>''',unsafe_allow_html=True)
 st.title('Compression Observatory')
@@ -16,7 +16,8 @@ if not os.getenv('COINGECKO_DEMO_API_KEY'):
     try:
         if st.secrets.get('COINGECKO_DEMO_API_KEY'): os.environ['COINGECKO_DEMO_API_KEY']=st.secrets['COINGECKO_DEMO_API_KEY']
     except FileNotFoundError: pass
-store=Store(os.getenv('DB_PATH','data/scanner.sqlite'))
+active_db=runtime_db_path()
+store=Store(active_db)
 page=st.sidebar.radio('Workspace',['Individual Coin Analysis','Market Scanner','State Transition Monitor','Historical State Charts','Data Quality Indicators','Rules & Validation'])
 st.sidebar.caption(f'Rule version: {VERSION} · $0 public data stack')
 @st.cache_data(ttl=3600,show_spinner=False)
@@ -100,7 +101,7 @@ elif page=='Market Scanner':
             try:
                 from scanner import scan
                 with st.spinner('Scanning verified mappings; exchange access and free quotas may limit coverage…'):
-                    st.json(scan(exchange,int(limit),os.getenv('DB_PATH','data/scanner.sqlite')))
+                    st.json(scan(exchange,int(limit),active_db))
             except Exception as e: st.error(f'Scan failed: {e}')
     f=store.latest()
     if f.empty: st.info('No scans recorded yet. See setup instructions and mappings.json.')
