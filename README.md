@@ -49,3 +49,6 @@ Read RULES.md before interpreting any score. Original V20 score was not recovere
 - tests/: classifier, causality, persistence, data failure and dashboard tests
 
 Keep all thresholds versioned; recover and implement the original score as a new rule version, preserving older classifications for comparison. Tests use deterministic synthetic fixtures, clearly isolated from production data.
+
+## Cloud venue restrictions
+If direct Bybit inventory via CCXT is unavailable, the scanner explicitly uses CoinGecko’s Bybit derivatives listings. The run report identifies this secondary source and preserves the CCXT failure. Every such contract is labeled VENUE_STATUS_UNCONFIRMED with provider last-traded timestamp. This is a provider-reported research universe, not verification of current venue tradability. Other exchange choices fail explicitly unless a secondary source is configured. This does not bypass exchange restrictions or send trades.

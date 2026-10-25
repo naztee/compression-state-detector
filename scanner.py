@@ -3,7 +3,7 @@ import json
 import time
 from pathlib import Path
 import pandas as pd
-from data import perpetuals,coin_list,resolve,markets,history,contract_identities
+from data import perpetuals,coin_list,resolve,markets,history,contract_identities,provider_perpetuals
 from engine import analyze
 from store import Store
 
@@ -13,11 +13,19 @@ def _scan(exchange='bybit',limit=25,db='data/scanner.sqlite',delay=12):
     provider_warning=None
     try: identities=contract_identities(exchange)
     except Exception as e: identities={}; provider_warning=str(e)
-    contracts=resolve(perpetuals(exchange),coin_list(),overrides,identities)
+    try:
+        inventory=perpetuals(exchange); report['inventory_source']='CCXT_VENUE'
+    except Exception as e:
+        report['venue_inventory_warning']=str(e)
+        inventory=provider_perpetuals(exchange)
+        report['inventory_source']='COINGECKO_DERIVATIVES_VENUE_STATUS_UNCONFIRMED'
+    contracts=resolve(inventory,coin_list(),overrides,identities)
     report['identity_source_warning']=provider_warning
     store.universe(contracts)
     contracts.to_csv('data/universe_latest.csv',index=False)
-    eligible=contracts[contracts.coin_id.notna() & contracts.active.eq(True)].drop_duplicates('coin_id')
+    eligible_status=contracts.active.eq(True)
+    if 'inventory_source' in contracts: eligible_status=eligible_status | contracts.inventory_source.eq('COINGECKO_DERIVATIVES')
+    eligible=contracts[contracts.coin_id.notna() & eligible_status].drop_duplicates('coin_id')
     ids=eligible.coin_id.tolist(); snapshots=[]
     for i in range(0,len(ids),100):
         snapshots.extend(markets(ids[i:i+100])); time.sleep(delay)

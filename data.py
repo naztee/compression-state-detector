@@ -70,6 +70,19 @@ def contract_identities(exchange):
             matches.setdefault(t['symbol'],set()).add(t['coin_id'])
     return {symbol:next(iter(ids)) for symbol,ids in matches.items() if len(ids)==1}
 
+def provider_perpetuals(exchange):
+    """Explicit secondary inventory; venue trading status remains unconfirmed."""
+    if exchange != 'bybit': raise DataError('No secondary inventory configured for this venue')
+    raw=get('derivatives/exchanges/bybit',{'include_tickers':'all'},ttl=86400)
+    rows=[]
+    for t in raw.get('tickers',[]):
+        if t.get('contract_type')=='perpetual' and t.get('target')=='USDT' and t.get('coin_id') and not t.get('expired_at'):
+            rows.append(dict(exchange=exchange,symbol=t['symbol'],contract_id=t['symbol'],base=t['base'],
+                             active=None,contract_status='VENUE_STATUS_UNCONFIRMED',inventory_source='COINGECKO_DERIVATIVES',
+                             provider_last_traded=t.get('last_traded')))
+    if not rows: raise DataError('Secondary inventory returned no supported contracts')
+    return rows
+
 def resolve(contracts,coins,overrides=None,identities=None):
     overrides=overrides or {}; identities=identities or {}; bysymbol={}; ids={c['id'] for c in coins}
     for c in coins: bysymbol.setdefault(c['symbol'].upper(),[]).append(c['id'])
