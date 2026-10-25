@@ -58,3 +58,17 @@ def test_historical_mc_controls_baseline():
 def test_stability_tiny_perturbation_flat_market():
     f=fixture(120); h=analyze(f); f.price*=1.00001
     assert analyze(f).state.tolist()==h.state.tolist()
+
+def test_cloud_runtime_snapshot_isolation(monkeypatch,tmp_path):
+    import os
+    from store import runtime_db_path
+    monkeypatch.delenv('DB_PATH',raising=False)
+    f=fixture(90); src=tmp_path/'source.sqlite'; source=Store(str(src)); source.save('original',analyze(f),f); source.conn.close()
+    before=src.read_bytes(); run1=runtime_db_path(str(src),cloud=True)
+    runtime=Store(run1); runtime.save('interactive',analyze(f),f); runtime.conn.close()
+    assert src.read_bytes()==before
+    assert runtime_db_path(str(src),cloud=True)==run1
+    source=Store(str(src)); source.save('new_snapshot',analyze(f),f); source.conn.close()
+    run2=runtime_db_path(str(src),cloud=True)
+    assert run2!=run1
+    updated=Store(run2); assert set(updated.latest().coin_id)=={'original','new_snapshot'}; updated.conn.close()
