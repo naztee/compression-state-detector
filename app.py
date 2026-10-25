@@ -5,14 +5,13 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from data import search, history, DataError
-from engine import analyze, outcomes, baseline_report, STATES, VERSION, state_checks
+from engine import analyze, outcomes, baseline_report, STATES, VERSION
 from store import Store, runtime_db_path
-from recovered import analyze_recovered
 st.set_page_config(page_title='Compression Observatory',page_icon='◈',layout='wide')
 st.markdown('''<style>.block-container{padding-top:2rem;max-width:1450px}div[data-testid="stMetric"]{background:#152033;padding:16px;border-radius:12px}h1{letter-spacing:-.04em}</style>''',unsafe_allow_html=True)
 st.title('Compression Observatory')
 st.caption('MARKET LIFECYCLE • DAILY UTC • RESEARCH EDITION')
-st.warning('Two separate models: recovered research score requires genuine 114-day OHLC history; experimental S0–S5 remains unvalidated. Score categories are not lifecycle states. Neither model is an automatic entry or sizing signal.')
+st.warning('Provisional rules, not a validated trading signal. Exact V20 score is unavailable; V20 proxy is labeled separately. State ≠ directional bias.')
 if not os.getenv('COINGECKO_DEMO_API_KEY'):
     try:
         if st.secrets.get('COINGECKO_DEMO_API_KEY'): os.environ['COINGECKO_DEMO_API_KEY']=st.secrets['COINGECKO_DEMO_API_KEY']
@@ -27,29 +26,12 @@ def lookup(q): return search(q)
 def fetch(cid): return history(cid)
 def table(df): st.dataframe(df,width='stretch',hide_index=True)
 def display_history(cid,h,raw):
-    research=analyze_recovered(raw)
-    st.subheader('Recovered research score · separate from S0–S5')
-    rr=research.iloc[-1] if not research.empty else None
-    if rr is None or rr.research_quality != 'OK':
-        st.warning('Recovered score unavailable: genuine aligned daily OHLC plus historical market cap and volume are required for 114 completed UTC days. CoinGecko reference-price history alone is insufficient.')
-        if rr is not None: st.caption(rr.research_quality)
-    else:
-        cols=st.columns(3)
-        cols[0].metric('Recovered score',f'{rr.research_score:.2f}')
-        cols[1].metric('Research score category',rr.research_category)
-        cols[2].metric('V20 five-gate candidate','PASS' if rr.research_v20 else 'FAIL')
-        st.caption('Recovered V21 scoring functions + frozen V20 guide gates. Source-dependent research result; not a verified reproduction of the original backtest. COOLING 30–59 is not S2. No extra Q4-return entry gate is added.')
-        if rr.research_failed_gates: st.write('Failed candidate gates: '+rr.research_failed_gates)
-        table(research.tail(1))
-    with st.expander('Recovered research history and CSV export'):
-        table(research)
-        st.download_button('Download recovered research',research.to_csv(index=False),file_name=f'{cid}_recovered.csv')
     latest=h.iloc[-1]; state=latest.state
     st.subheader(f'{cid} · {state} — {STATES.get(state,state.title())}')
     st.caption(f'As of {latest.date} UTC · historical sample date, not live price')
     if (pd.Timestamp.now(tz='UTC').normalize()-pd.Timestamp(latest.date,tz='UTC')).days>2: st.error('STALE DATA: latest sample is more than 2 days old.')
     cols=st.columns(4)
-    vals=[('Experimental score · not V20',latest.get('score')),('Momentum · 7 days',latest.get('momentum7')),('Observed duration',f'{latest.duration_days} days'),('Previous state',latest.previous_state or 'Unknown')]
+    vals=[('Compression score',latest.get('score')),('Momentum · 7 days',latest.get('momentum7')),('Observed duration',f'{latest.duration_days} days'),('Previous state',latest.previous_state or 'Unknown')]
     for col,(label,value) in zip(cols,vals): col.metric(label,'N/A' if value is None or (isinstance(value,float) and pd.isna(value)) else f'{value:.2f}' if isinstance(value,float) else value)
     cols=st.columns(4)
     for col,label,key in zip(cols,['Distance above 84D sample low','30D sample range','Directional bias','Historical market cap'],['location84','range30','bias','market_cap']):
@@ -57,20 +39,9 @@ def display_history(cid,h,raw):
     st.caption('Duration begins at first valid observed classification; earlier state may predate available history. Daily samples miss intraday extremes.')
     if latest.quality!='OK': st.error(latest.quality)
     else:
-        st.info('Experimental model eligibility: not original V20. See recovered research results above; missing OHLC prevents recovered eligibility.')
-        st.caption(f'Experimental five-gate proxy: {bool(latest.get("v20_provisional_proxy",False))}. This substitutes a different score; it does not establish V20 eligibility.')
+        st.info(f'V20 exact eligibility: UNVERIFIED · Provisional proxy: {bool(latest.get("v20_provisional_proxy",False))}')
         q=pd.DataFrame({'Period':['Q1 · oldest','Q2','Q3','Q4 · newest'],'Vol / MC %':[latest[f'q{i}'] for i in range(1,5)]})
         st.plotly_chart(px.bar(q,x='Period',y='Vol / MC %',title='Four consecutive 21-day periods'),width='stretch')
-    with st.expander('Why this state? · exact conditions', expanded=True):
-        if latest.quality != 'OK':
-            st.write('UNKNOWN: required history is incomplete. State rules are not evaluated.')
-        else:
-            checks=pd.DataFrame(state_checks(latest))
-            summary=checks.groupby('state',sort=False).result.apply(lambda x: 'QUALIFIES' if x.eq('PASS').all() else 'DOES NOT QUALIFY').reset_index(name='Rule result')
-            table(summary)
-            st.caption('Precedence: S0 → S4 → S5 → S3 → S2 → S1. First qualifying state wins. UNCLASSIFIED means none qualify; it is not S3. These are provisional rules, separate from direction and V20 eligibility.')
-            table(checks)
-            st.caption('Metric key: r7/r21 = 7/21-day return (%); q4 = mean daily Vol/MC (%) in newest 21-day period; q4_return = 21-day return (%); range30 = sampled 30-day range (%); off_high21 = distance below 21-day high (%); vol_ratio = last 7-day mean volume / preceding 21-day mean. S4 price threshold is the prior 30-day high.')
     st.plotly_chart(px.line(raw,x='date',y='price',title='CoinGecko USD daily reference price'),width='stretch')
     good=h[h.state.ne('UNKNOWN')]
     if not good.empty: st.plotly_chart(px.scatter(good,x='date',y='price',color='state',hover_data=['score','bias'],title='Historical classifications'),width='stretch')
@@ -84,10 +55,10 @@ def display_history(cid,h,raw):
         table(outcomes(raw,h[h.transition]))
 if page=='Individual Coin Analysis':
     q=st.text_input('Search a cryptocurrency','bitcoin')
-    uploaded=st.file_uploader('Import genuine daily CSV: date, market_cap, volume and price; add open, high, low, close for recovered research',type='csv')
+    uploaded=st.file_uploader('Or import real daily history CSV: date, price, market_cap, volume',type='csv')
     if uploaded:
         try:
-            raw=pd.read_csv(uploaded); raw['price']=raw['price'] if 'price' in raw else raw['close']; h=analyze(raw); display_history('uploaded-data',h,raw)
+            raw=pd.read_csv(uploaded); h=analyze(raw); display_history('uploaded-data',h,raw)
         except Exception as e: st.error(f'Cannot analyze CSV: {e}')
     elif q:
         try:
@@ -138,7 +109,7 @@ elif page=='Market Scanner':
         states=st.multiselect('Lifecycle states',sorted(f.state.unique()))
         a,b,c=st.columns(3)
         lo=a.number_input('Min market cap',value=1_000_000,min_value=0); hi=b.number_input('Max market cap',value=20_000_000,min_value=0)
-        score=c.slider('Experimental score · not V20',(0),(100),(0,100))
+        score=c.slider('Compression score',(0),(100),(0,100))
         minvol=st.number_input('Minimum daily reported volume USD',value=0,min_value=0)
         recent=st.checkbox('Only transitions in past 7 calendar days')
         filt=f[f.market_cap.between(lo,hi) & f.score.between(*score) & f.volume.ge(minvol)] if 'score' in f else f.iloc[0:0]
@@ -147,10 +118,6 @@ elif page=='Market Scanner':
             allh=store.all_states(); cutoff=(pd.Timestamp.now(tz='UTC')-pd.Timedelta(days=7)).date().isoformat()
             ids=allh.loc[allh.transition.eq(True)&allh.date.ge(cutoff),'coin_id']; filt=filt[filt.coin_id.isin(ids)]
         table(filt); st.download_button('Export scanner CSV',filt.to_csv(index=False),'scanner.csv')
-    st.subheader('Recovered research scanner coverage')
-    recovered_latest=store.latest_research()
-    if recovered_latest.empty: st.info('No recovered research records yet. The next scan records availability; reference-price histories alone cannot supply recovered scores.')
-    else: table(recovered_latest)
     run=Path('data/last_run.json')
     if run.exists(): st.json(json.loads(run.read_text()))
 elif page in ('State Transition Monitor','Historical State Charts'):
