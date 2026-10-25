@@ -1,0 +1,16 @@
+{
+  "source": "Verified Mac observations imported explicitly; classifications recomputed with same provisional rule version",
+  "imported_at": "2026-10-25T03:34:26.813887+00:00",
+  "coins": [
+    "4stock",
+    "bitcoin",
+    "ethereum",
+    "everlyn",
+    "hana-network",
+    "solana",
+    "towns",
+    "yooldo-games"
+  ],
+  "observations": 2595,
+  "automated_refresh_status": "CoinGecko HTTP 429 on GitHub runner; see last_run.json; initial snapshot is not a successful cloud scan"
+}
