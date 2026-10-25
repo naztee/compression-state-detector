@@ -1,0 +1,7 @@
+{
+  "exchange": "bybit",
+  "fatal_error": "bybit markets unavailable: RateLimitExceeded",
+  "scanned": 0,
+  "status": "FAILED",
+  "time": "2026-10-25T03:05:10.681203+00:00"
+}
