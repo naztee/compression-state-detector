@@ -31,7 +31,7 @@ def display_history(cid,h,raw):
     if (pd.Timestamp.now(tz='UTC').normalize()-pd.Timestamp(latest.date,tz='UTC')).days>2: st.error('STALE DATA: latest sample is more than 2 days old.')
     cols=st.columns(4)
     vals=[('Compression score',latest.get('score')),('Momentum · 7 days',latest.get('momentum7')),('Observed duration',f'{latest.duration_days} days'),('Previous state',latest.previous_state or 'Unknown')]
-    for col,(label,value) in zip(cols,vals): col.metric(label,'N/A' if value is None or (isinstance(value,float) and pd.isna(value)) else value)
+    for col,(label,value) in zip(cols,vals): col.metric(label,'N/A' if value is None or (isinstance(value,float) and pd.isna(value)) else f'{value:.2f}' if isinstance(value,float) else value)
     cols=st.columns(4)
     for col,label,key in zip(cols,['Distance above 84D sample low','30D sample range','Directional bias','Historical market cap'],['location84','range30','bias','market_cap']):
         v=latest.get(key); col.metric(label,'N/A' if v is None or pd.isna(v) else f'${v:,.0f}' if key=='market_cap' else f'{v:.2f}%' if key in ('location84','range30') else v)
@@ -76,6 +76,7 @@ if page=='Individual Coin Analysis':
             st.error(f'Data unavailable: {e}'); st.info('No fabricated fallback. Retry later, configure an optional FREE CoinGecko Demo key, or import genuine daily CSV data.')
 elif page=='Market Scanner':
     st.subheader('Latest scanner observations')
+    if Path('data/seed_provenance.json').exists(): st.caption('Initial history imported from the verified Mac scan. Automated refresh status is shown below; import provenance is retained in data/seed_provenance.json.')
     st.caption('Run python scanner.py daily, or enable the supplied free GitHub Actions workflow. The dashboard reads the persisted snapshot; it does not start paid jobs.')
     with st.expander('Review and add a contract identity mapping'):
         st.caption('Match the exact exchange base and CoinGecko ID. Confirm the underlying asset, contract address and any multipliers/redenominations. Cloud edits are ephemeral; update mappings.json in GitHub for scheduled scans.')

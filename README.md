@@ -52,3 +52,8 @@ Keep all thresholds versioned; recover and implement the original score as a new
 
 ## Cloud venue restrictions
 If direct Bybit inventory via CCXT is unavailable, the scanner explicitly uses CoinGecko’s Bybit derivatives listings. The run report identifies this secondary source and preserves the CCXT failure. Every such contract is labeled VENUE_STATUS_UNCONFIRMED with provider last-traded timestamp. This is a provider-reported research universe, not verification of current venue tradability. Other exchange choices fail explicitly unless a secondary source is configured. This does not bypass exchange restrictions or send trades.
+
+## Live deployment status — 25 October 2026
+App: https://compression-observatory-naztee.streamlit.app/
+Source: https://github.com/naztee/compression-state-detector
+The individual detector was verified on Streamlit Community Cloud with real history and interactive charts. The daily schedule is configured for 09:35 Asia/Singapore with a 25-asset bound. The initial direct-venue run failed because Bybit rejected the GitHub runner; the revised run explicitly tried CoinGecko provider inventory but was blocked by CoinGecko HTTP 429. Scheduled cloud refreshes are not yet verified successful. A FREE Demo API key is the next configuration step; no paid plan is required or enabled. Initial real history was imported from the verified Mac scan with 2,595 observations across 8 assets, including a small-cap asset with missing data left UNKNOWN. data/seed_provenance.json records this import, and last_run.json retains automated failure status. This initial snapshot is not a successful automated cloud scan.
