@@ -29,11 +29,16 @@ class Store:
         CREATE TABLE IF NOT EXISTS states(coin_id TEXT,date TEXT,version TEXT,state TEXT,payload TEXT,PRIMARY KEY(coin_id,date,version));
         CREATE TABLE IF NOT EXISTS observations(coin_id TEXT,date TEXT,payload TEXT,observed_at TEXT,PRIMARY KEY(coin_id,date));
         CREATE TABLE IF NOT EXISTS universe(date TEXT,exchange TEXT,symbol TEXT,payload TEXT,PRIMARY KEY(date,exchange,symbol));
+        CREATE TABLE IF NOT EXISTS research_states(coin_id TEXT,date TEXT,version TEXT,payload TEXT,PRIMARY KEY(coin_id,date,version));
         CREATE TABLE IF NOT EXISTS runs(time TEXT PRIMARY KEY,payload TEXT);
         ''')
     def save(self,coin_id,history,raw):
+        from recovered import analyze_recovered
+        research=analyze_recovered(raw)
         now=pd.Timestamp.now(tz='UTC').isoformat()
         with self.conn:
+            for r in research.astype(object).where(pd.notna(research), None).to_dict('records'):
+                self.conn.execute("INSERT INTO research_states VALUES(?,?,?,?) ON CONFLICT(coin_id,date,version) DO UPDATE SET payload=excluded.payload WHERE json_extract(research_states.payload,'$.research_quality') != 'OK' AND json_extract(excluded.payload,'$.research_quality') = 'OK'",(coin_id,r['date'],r['research_version'],json.dumps(r,default=str)))
             for r in raw.to_dict('records'):
                 date=pd.Timestamp(r['date']).date().isoformat(); r['date']=date
                 # Freeze first observation to avoid silently rewriting historical revisions.
@@ -55,4 +60,7 @@ class Store:
         return pd.DataFrame([dict(coin_id=c,**json.loads(p)) for c,p in rows])
     def all_states(self):
         rows=self.conn.execute('SELECT coin_id,payload FROM states ORDER BY date').fetchall()
+        return pd.DataFrame([dict(coin_id=c,**json.loads(p)) for c,p in rows])
+    def latest_research(self):
+        rows=self.conn.execute('SELECT coin_id,payload FROM research_states s WHERE date=(SELECT MAX(date) FROM research_states b WHERE b.coin_id=s.coin_id AND b.version=s.version)').fetchall()
         return pd.DataFrame([dict(coin_id=c,**json.loads(p)) for c,p in rows])
