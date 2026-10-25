@@ -1,0 +1,30 @@
+name: Restore original working application
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-original.yml'
+permissions:
+  contents: write
+concurrency:
+  group: daily-scanner
+  cancel-in-progress: false
+jobs:
+  restore:
+    if: github.repository == 'naztee/compression-state-detector' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore pre-update code, preserve market observations
+        run: |
+          git restore --source=92963b8fb7ba0dacb13428fdec48881d6b0ea5dc --staged --worktree -- . ':(exclude)data/**'
+          git diff --cached --exit-code -- data/
+          git config user.name 'compression-scanner'
+          git config user.email 'scanner@users.noreply.github.com'
+          if ! git diff --cached --quiet; then
+            git commit -m 'Restore complete original working code; preserve market history'
+            git push
+          fi
+          git diff --exit-code 92963b8fb7ba0dacb13428fdec48881d6b0ea5dc HEAD -- . ':(exclude)data/**'
