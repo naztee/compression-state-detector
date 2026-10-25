@@ -1,0 +1,37 @@
+name: Free daily scan
+on:
+  schedule:
+    - cron: '35 1 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: daily-scanner
+  cancel-in-progress: false
+jobs:
+  scan:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+      - run: python scanner.py --exchange bybit --limit 25
+        env:
+          COINGECKO_DEMO_API_KEY: ${{ secrets.COINGECKO_DEMO_API_KEY }}
+      - name: Save durable snapshot
+        if: always()
+        run: |
+          mkdir -p data
+          git config user.name 'compression-scanner'
+          git config user.email 'scanner@users.noreply.github.com'
+          git add data/
+          if ! git diff --cached --quiet; then
+            git commit -m 'Daily market observations'
+            git push
+          fi
