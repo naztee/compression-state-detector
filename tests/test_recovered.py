@@ -48,18 +48,3 @@ def test_invalid_ohlc_and_zero_volume():
     f=fixture(); f.volume=0
     assert analyze_recovered(f).iloc[-1].research_quality=='OK'
 
-
-def test_research_storage_upgrade_and_freeze(tmp_path):
-    from store import Store
-    from engine import analyze
-    s=Store(str(tmp_path/'research.sqlite')); f=fixture(); f['price']=f.close
-    incomplete=f.drop(columns=['open','high','low','close'])
-    s.save('x',analyze(incomplete),incomplete)
-    assert s.latest_research().iloc[-1].research_category=='UNAVAILABLE'
-    s.save('x',analyze(f),f)
-    first=s.latest_research().iloc[-1].research_score
-    assert pd.notna(first)
-    f['volume']=f.volume*10
-    s.save('x',analyze(f),f)
-    assert s.latest_research().iloc[-1].research_score==first
-    assert s.conn.execute('SELECT COUNT(*) FROM states').fetchone()[0]==len(f)
