@@ -29,7 +29,6 @@ class Store:
         CREATE TABLE IF NOT EXISTS states(coin_id TEXT,date TEXT,version TEXT,state TEXT,payload TEXT,PRIMARY KEY(coin_id,date,version));
         CREATE TABLE IF NOT EXISTS observations(coin_id TEXT,date TEXT,payload TEXT,observed_at TEXT,PRIMARY KEY(coin_id,date));
         CREATE TABLE IF NOT EXISTS universe(date TEXT,exchange TEXT,symbol TEXT,payload TEXT,PRIMARY KEY(date,exchange,symbol));
-        CREATE TABLE IF NOT EXISTS research_states(coin_id TEXT,date TEXT,version TEXT,payload TEXT,PRIMARY KEY(coin_id,date,version));
         CREATE TABLE IF NOT EXISTS runs(time TEXT PRIMARY KEY,payload TEXT);
         ''')
     def save(self,coin_id,history,raw):
@@ -56,7 +55,4 @@ class Store:
         return pd.DataFrame([dict(coin_id=c,**json.loads(p)) for c,p in rows])
     def all_states(self):
         rows=self.conn.execute('SELECT coin_id,payload FROM states ORDER BY date').fetchall()
-        return pd.DataFrame([dict(coin_id=c,**json.loads(p)) for c,p in rows])
-    def latest_research(self):
-        rows=self.conn.execute('SELECT coin_id,payload FROM research_states s WHERE date=(SELECT MAX(date) FROM research_states b WHERE b.coin_id=s.coin_id AND b.version=s.version)').fetchall()
         return pd.DataFrame([dict(coin_id=c,**json.loads(p)) for c,p in rows])

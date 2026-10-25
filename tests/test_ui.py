@@ -5,7 +5,7 @@ def test_dashboard_api_failure_renders(monkeypatch,tmp_path):
     import data
     def fail(q): raise data.DataError('simulated offline')
     monkeypatch.setattr(data,'search',fail)
-    at=AppTest.from_file(str(__import__('pathlib').Path(__file__).resolve().parents[1] / 'app.py')).run(timeout=30)
+    at=AppTest.from_file('../app.py').run(timeout=30)
     assert not at.exception
     assert any('Data unavailable' in e.value for e in at.error)
     for page in ['Market Scanner','State Transition Monitor','Historical State Charts','Data Quality Indicators','Rules & Validation']:
