@@ -18,14 +18,31 @@ def prepare(frame):
         f[c] = pd.to_numeric(f[c], errors='coerce').where(lambda s:s>0)
     return f
 
+def state_checks(m):
+    """Single source of truth for classification and visible explanations."""
+    specs = [
+        ('S0','r7','<=',-20), ('S0','vol_ratio','>=',1.5),
+        ('S4','r7','>=',15), ('S4','price','>',m.get('prior_high30')),
+        ('S4','vol_ratio','>=',1.3),
+        ('S5','r21','>=',30), ('S5','off_high21','<=',-10), ('S5','vol_ratio','>=',1.3),
+        ('S3','score','>=',75), ('S3','range30','<=',25), ('S3','q4_return','>=',-12),
+        ('S2','score','>=',30), ('S2','q4','>=',5), ('S2','q4','<=',20),
+        ('S2','range30','<=',35), ('S2','q4_return','>=',-12),
+        ('S1','range30','<=',50), ('S1','r7','>',-20)]
+    ops = {'<=':lambda a,b:a<=b, '>=':lambda a,b:a>=b, '>':lambda a,b:a>b}
+    rows=[]
+    for state,metric,op,threshold in specs:
+        value=m.get(metric)
+        available = value is not None and threshold is not None and pd.notna(value) and pd.notna(threshold)
+        rows.append(dict(state=state,metric=metric,value=value,requirement=f'{op} {threshold}' if threshold is not None else 'Unavailable',
+                         result=('PASS' if ops[op](value,threshold) else 'FAIL') if available else 'MISSING'))
+    return rows
+
 def classify(m):
     """Independent predicates, resolved by explicit S0,S4,S5,S3,S2,S1 precedence."""
-    if m['r7'] <= -20 and m['vol_ratio'] >= 1.5: return 'S0'
-    if m['r7'] >= 15 and m['price'] > m['prior_high30'] and m['vol_ratio'] >= 1.3: return 'S4'
-    if m['r21'] >= 30 and m['off_high21'] <= -10 and m['vol_ratio'] >= 1.3: return 'S5'
-    if m['score'] >= 75 and m['range30'] <= 25 and m['q4_return'] >= -12: return 'S3'
-    if m['score'] >= 30 and 5 <= m['q4'] <= 20 and m['range30'] <= 35 and m['q4_return'] >= -12: return 'S2'
-    if m['range30'] <= 50 and m['r7'] > -20: return 'S1'
+    checks=state_checks(m)
+    for state in ('S0','S4','S5','S3','S2','S1'):
+        if all(c['result']=='PASS' for c in checks if c['state']==state): return state
     return 'UNCLASSIFIED'
 
 def analyze(frame, asof=None):

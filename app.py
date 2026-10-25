@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from data import search, history, DataError
-from engine import analyze, outcomes, baseline_report, STATES, VERSION
+from engine import analyze, outcomes, baseline_report, STATES, VERSION, state_checks
 from store import Store, runtime_db_path
 st.set_page_config(page_title='Compression Observatory',page_icon='◈',layout='wide')
 st.markdown('''<style>.block-container{padding-top:2rem;max-width:1450px}div[data-testid="stMetric"]{background:#152033;padding:16px;border-radius:12px}h1{letter-spacing:-.04em}</style>''',unsafe_allow_html=True)
@@ -42,6 +42,16 @@ def display_history(cid,h,raw):
         st.info(f'V20 exact eligibility: UNVERIFIED · Provisional proxy: {bool(latest.get("v20_provisional_proxy",False))}')
         q=pd.DataFrame({'Period':['Q1 · oldest','Q2','Q3','Q4 · newest'],'Vol / MC %':[latest[f'q{i}'] for i in range(1,5)]})
         st.plotly_chart(px.bar(q,x='Period',y='Vol / MC %',title='Four consecutive 21-day periods'),width='stretch')
+    with st.expander('Why this state? · exact conditions', expanded=True):
+        if latest.quality != 'OK':
+            st.write('UNKNOWN: required history is incomplete. State rules are not evaluated.')
+        else:
+            checks=pd.DataFrame(state_checks(latest))
+            summary=checks.groupby('state',sort=False).result.apply(lambda x: 'QUALIFIES' if x.eq('PASS').all() else 'DOES NOT QUALIFY').reset_index(name='Rule result')
+            table(summary)
+            st.caption('Precedence: S0 → S4 → S5 → S3 → S2 → S1. First qualifying state wins. UNCLASSIFIED means none qualify; it is not S3. These are provisional rules, separate from direction and V20 eligibility.')
+            table(checks)
+            st.caption('Metric key: r7/r21 = 7/21-day return (%); q4 = mean daily Vol/MC (%) in newest 21-day period; q4_return = 21-day return (%); range30 = sampled 30-day range (%); off_high21 = distance below 21-day high (%); vol_ratio = last 7-day mean volume / preceding 21-day mean. S4 price threshold is the prior 30-day high.')
     st.plotly_chart(px.line(raw,x='date',y='price',title='CoinGecko USD daily reference price'),width='stretch')
     good=h[h.state.ne('UNKNOWN')]
     if not good.empty: st.plotly_chart(px.scatter(good,x='date',y='price',color='state',hover_data=['score','bias'],title='Historical classifications'),width='stretch')
