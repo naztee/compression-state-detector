@@ -24,3 +24,17 @@ def test_failed_universe_run_logged(monkeypatch,tmp_path):
     report=scanner.scan(delay=0)
     assert report['status']=='FAILED'
     assert (tmp_path/'data/last_run.json').exists()
+
+def test_secondary_inventory_is_explicit_and_status_unconfirmed(monkeypatch,tmp_path):
+    monkeypatch.chdir(tmp_path); (tmp_path/'mappings.json').write_text('{}')
+    monkeypatch.setattr(scanner,'contract_identities',lambda e:{'XUSDT':'x'})
+    def fail(e): raise RuntimeError('venue API unavailable')
+    monkeypatch.setattr(scanner,'perpetuals',fail)
+    monkeypatch.setattr(scanner,'provider_perpetuals',lambda e:[dict(exchange=e,symbol='XUSDT',contract_id='XUSDT',base='X',active=None,inventory_source='COINGECKO_DERIVATIVES',contract_status='VENUE_STATUS_UNCONFIRMED')])
+    monkeypatch.setattr(scanner,'coin_list',lambda:[dict(id='x',symbol='x')])
+    monkeypatch.setattr(scanner,'markets',lambda ids:[])
+    r=scanner.scan(delay=0)
+    assert r['inventory_source']=='COINGECKO_DERIVATIVES_VENUE_STATUS_UNCONFIRMED'
+    assert r['venue_inventory_warning']=='venue API unavailable'
+    assert r['verified']==1
+    assert pd.read_csv('data/universe_latest.csv').contract_status.iloc[0]=='VENUE_STATUS_UNCONFIRMED'
