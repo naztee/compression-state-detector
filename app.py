@@ -11,7 +11,7 @@ st.set_page_config(page_title='Compression Observatory',page_icon='◈',layout='
 st.markdown('''<style>.block-container{padding-top:2rem;max-width:1450px}div[data-testid="stMetric"]{background:#152033;padding:16px;border-radius:12px}h1{letter-spacing:-.04em}</style>''',unsafe_allow_html=True)
 st.title('Compression Observatory')
 st.caption('MARKET LIFECYCLE • DAILY UTC • RESEARCH EDITION')
-st.warning('Provisional rules, not a validated trading signal. Exact V20 score is unavailable; V20 proxy is labeled separately. State ≠ directional bias.')
+st.warning('MODEL UNDER REVIEW: the experimental score does not reproduce V20. Original V20 score thresholds and backtest results cannot be transferred to this score. S0–S5 labels are unvalidated descriptions, not entry or sizing signals. State ≠ direction.')
 if not os.getenv('COINGECKO_DEMO_API_KEY'):
     try:
         if st.secrets.get('COINGECKO_DEMO_API_KEY'): os.environ['COINGECKO_DEMO_API_KEY']=st.secrets['COINGECKO_DEMO_API_KEY']
@@ -31,7 +31,7 @@ def display_history(cid,h,raw):
     st.caption(f'As of {latest.date} UTC · historical sample date, not live price')
     if (pd.Timestamp.now(tz='UTC').normalize()-pd.Timestamp(latest.date,tz='UTC')).days>2: st.error('STALE DATA: latest sample is more than 2 days old.')
     cols=st.columns(4)
-    vals=[('Compression score',latest.get('score')),('Momentum · 7 days',latest.get('momentum7')),('Observed duration',f'{latest.duration_days} days'),('Previous state',latest.previous_state or 'Unknown')]
+    vals=[('Experimental score · not V20',latest.get('score')),('Momentum · 7 days',latest.get('momentum7')),('Observed duration',f'{latest.duration_days} days'),('Previous state',latest.previous_state or 'Unknown')]
     for col,(label,value) in zip(cols,vals): col.metric(label,'N/A' if value is None or (isinstance(value,float) and pd.isna(value)) else f'{value:.2f}' if isinstance(value,float) else value)
     cols=st.columns(4)
     for col,label,key in zip(cols,['Distance above 84D sample low','30D sample range','Directional bias','Historical market cap'],['location84','range30','bias','market_cap']):
@@ -39,7 +39,8 @@ def display_history(cid,h,raw):
     st.caption('Duration begins at first valid observed classification; earlier state may predate available history. Daily samples miss intraday extremes.')
     if latest.quality!='OK': st.error(latest.quality)
     else:
-        st.info(f'V20 exact eligibility: UNVERIFIED · Provisional proxy: {bool(latest.get("v20_provisional_proxy",False))}')
+        st.info('Original V20 eligibility: UNVERIFIED — original score formula has not been recovered.')
+        st.caption(f'Experimental five-gate proxy: {bool(latest.get("v20_provisional_proxy",False))}. This substitutes a different score; it does not establish V20 eligibility.')
         q=pd.DataFrame({'Period':['Q1 · oldest','Q2','Q3','Q4 · newest'],'Vol / MC %':[latest[f'q{i}'] for i in range(1,5)]})
         st.plotly_chart(px.bar(q,x='Period',y='Vol / MC %',title='Four consecutive 21-day periods'),width='stretch')
     with st.expander('Why this state? · exact conditions', expanded=True):
@@ -119,7 +120,7 @@ elif page=='Market Scanner':
         states=st.multiselect('Lifecycle states',sorted(f.state.unique()))
         a,b,c=st.columns(3)
         lo=a.number_input('Min market cap',value=1_000_000,min_value=0); hi=b.number_input('Max market cap',value=20_000_000,min_value=0)
-        score=c.slider('Compression score',(0),(100),(0,100))
+        score=c.slider('Experimental score · not V20',(0),(100),(0,100))
         minvol=st.number_input('Minimum daily reported volume USD',value=0,min_value=0)
         recent=st.checkbox('Only transitions in past 7 calendar days')
         filt=f[f.market_cap.between(lo,hi) & f.score.between(*score) & f.volume.ge(minvol)] if 'score' in f else f.iloc[0:0]

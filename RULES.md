@@ -1,3 +1,8 @@
+### Model review — 25 October 2026
+The experimental score is not calibrated to the original V20 score. Applying V20's 30–59 threshold to it does not reproduce the original candidate set or research results. The proxy is retained only for reproducibility, not validated eligibility. S1/S2 must not automatically determine entry or position size.
+
+Known structural limitations: Q2/Q3 do not affect the score; flat low turnover can score 53.75 with Range30=5%; smooth Q=[100,60,30,10] and erratic Q=[100,2,80,10] both score 78.5 at Range30=20%. S1 is broad and S2 permits a 21-day loss of up to 12%. State labels do not establish accumulation. The preserved version is in provisional-1.0-archive.zip. Replacement formulas require a new version and held-out validation; no thresholds have been retuned to fit the displayed chart.
+
 ### Transparent provisional research model
 Rule version: provisional-1.0. The original V20 score formula was not recovered from accessible files. None of these formulas are claimed to reproduce it.
 
