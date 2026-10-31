@@ -7,7 +7,7 @@
   "inventory_source": "COINGECKO_DERIVATIVES_VENUE_STATUS_UNCONFIRMED",
   "identity_source_warning": null,
   "batch_limit_note": "Bounded daily batch; prioritizes $1M\u2013$20M, then least-recently scanned within each priority tier. Not complete daily coverage.",
-  "time": "2026-10-30T07:39:29.233293+00:00",
+  "time": "2026-10-31T07:26:05.311454+00:00",
   "contracts": 522,
   "unverified": 0,
   "verified": 522,
